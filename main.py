@@ -84,64 +84,92 @@ def get_referred_by():
         return ""
 
 def create_account(session):
-    email = generate_random_email(session)
-    password = "Password123!"
-    
-    payload = {"address": email, "password": password}
-    response = session.post("https://api.mail.tm/accounts", json=payload)
+    try:
+        email = generate_random_email(session)
+        password = "Password123!"
+        
+        payload = {"address": email, "password": password}
+        response = session.post("https://api.mail.tm/accounts", json=payload, timeout=10)
 
-    if response.status_code == 201:
-        print(Fore.CYAN + f"Akun dibuat: {email}")
-        return email, password
-    else:
-        print(Fore.RED + f"Gagal membuat akun (Status {response.status_code}): {response.text}")
+        if response.status_code == 201:
+            print(Fore.CYAN + f"Akun dibuat: {email}")
+            return email, password
+        else:
+            print(Fore.RED + f"Gagal membuat akun (Status {response.status_code}): {response.text}")
+            return None, None
+    except requests.RequestException:
+        print(Fore.RED + "Proxy Terputus saat membuat akun.")
+        return None, None
+
         return None, None
 
 def post_to_waitlist(session, email):
-    country = get_random_country()
-    referred_by = get_referred_by()
-    first_name, last_name = get_random_name()
-    
-    payload = {
-        "country": country,
-        "email": email,
-        "first_name": first_name,
-        "last_name": last_name,
-        "referred_by": referred_by
-    }
-    
-    response = session.post("https://api.legend.xyz/waitlist", json=payload)
-    if response.status_code == 201:
-        print(Fore.GREEN + f"Berhasil daftar ke waitlist: {first_name} {last_name} dari {country}")
-    else:
-        print(Fore.RED + "Gagal daftar ke waitlist:", response.json())
+    try:
+        country = get_random_country()
+        referred_by = get_referred_by()
+        first_name, last_name = get_random_name()
+        
+        payload = {
+            "country": country,
+            "email": email,
+            "first_name": first_name,
+            "last_name": last_name,
+            "referred_by": referred_by
+        }
+        
+        response = session.post("https://api.legend.xyz/waitlist", json=payload, timeout=10)
+        if response.status_code == 201:
+            print(Fore.GREEN + f"Berhasil daftar ke waitlist: {first_name} {last_name}")
+        else:
+            print(Fore.RED + "Gagal daftar ke waitlist:", response.json())
+    except requests.RequestException:
+        print(Fore.RED + "Proxy Terputus saat daftar ke waitlist.")
 
 def get_token(session, email, password):
-    response = session.post("https://api.mail.tm/token", json={"address": email, "password": password})
-    if response.status_code == 200:
-        return response.json()["token"]
-    else:
-        print(Fore.RED + "Gagal mendapatkan token:", response.json())
+    try:
+        response = session.post("https://api.mail.tm/token", json={"address": email, "password": password}, timeout=10)
+        if response.status_code == 200:
+            return response.json()["token"]
+        else:
+            print(Fore.RED + "Gagal mendapatkan token:", response.json())
+            return None
+    except requests.RequestException:
+        print(Fore.RED + "Proxy Terputus saat mendapatkan token email.")
         return None
 
 def get_email_content(session, token, message_id):
-    headers = {"Authorization": f"Bearer {token}"}
-    response = session.get(f"https://api.mail.tm/messages/{message_id}", headers=headers)
-    if response.status_code == 200:
-        return response.json().get("text") or response.json().get("html") or ""
-    return ""
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        response = session.get(f"https://api.mail.tm/messages/{message_id}", headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            return response.json().get("text") or response.json().get("html") or ""
+        return ""
+    
+    except requests.RequestException:
+        print(Fore.RED + "Proxy Terputus saat mengambil konten email.")
+        return ""
 
 def get_inbox_messages(session, token):
     headers = {"Authorization": f"Bearer {token}"}
+    
     for _ in range(15):
-        response = session.get("https://api.mail.tm/messages", headers=headers)
-        if response.status_code == 200:
-            messages = response.json()["hydra:member"]
-            if messages:
-                latest_message = messages[0]
-                print(Fore.YELLOW + f"Email dari: {latest_message['from']['address']}, Subjek: {latest_message['subject']}")
-                return latest_message["id"], get_email_content(session, token, latest_message["id"])
-        time.sleep(1)
+        try:
+            response = session.get("https://api.mail.tm/messages", headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                messages = response.json().get("hydra:member", [])
+                if messages:
+                    latest_message = messages[0]
+                    print(Fore.YELLOW + f"Email dari: {latest_message['from']['address']}, Subjek: {latest_message['subject']}")
+                    return latest_message["id"], get_email_content(session, token, latest_message["id"])
+            
+            time.sleep(1)
+        
+        except requests.RequestException:
+            print(Fore.RED + "Proxy Terputus saat mengambil inbox email.")
+            return None, None
+    
     print(Fore.YELLOW + "Tidak ada email masuk setelah 15 detik.")
     return None, None
 
@@ -154,25 +182,37 @@ def extract_verification_token(email_text):
 
 def verify_email(session, token):
     if token:
-        url = "https://api.legend.xyz/waitlist/confirm"
-        response = session.post(url, json={"token": token})
+        try:
+            url = "https://api.legend.xyz/waitlist/confirm"
+            response = session.post(url, json={"token": token}, timeout=10)
 
-        if response.status_code == 200:
-            print(Fore.GREEN + "Email berhasil diverifikasi.")
-            return True
-        else:
-            print(Fore.RED + "Gagal verifikasi email:", response.text)
+            if response.status_code == 200:
+                print(Fore.GREEN + "Email berhasil diverifikasi.")
+                return True
+            else:
+                print(Fore.RED + "Gagal verifikasi email:", response.text)
+                return False
+
+        except requests.RequestException:
+            print(Fore.RED + "Proxy Terputus saat verifikasi email.")
             return False
+
     return False
 
 def check_latest_email(session, email, password):
     token = get_token(session, email, password)
-    if token:
-        message_id, email_text = get_inbox_messages(session, token)
-        if message_id and email_text:
-            verification_token = extract_verification_token(email_text)
-            if verification_token:
-                verify_email(session, verification_token)
+    if not token:
+        print(Fore.RED + "Melanjutkan ke referral berikutnya...\n")
+        return
+    
+    message_id, email_text = get_inbox_messages(session, token)
+    if not message_id or not email_text:
+        print(Fore.RED + "Melanjutkan ke referral berikutnya...\n")
+        return
+    
+    verification_token = extract_verification_token(email_text)
+    if verification_token:
+        verify_email(session, verification_token)
 
 def main():
     try:
@@ -189,9 +229,13 @@ def main():
         session = get_proxy_session(proxies)
         
         email, password = create_account(session)
-        if email and password:
-            post_to_waitlist(session, email)
-            check_latest_email(session, email, password)
+        if not email or not password:
+            print(Fore.RED + "Melanjutkan ke referral berikutnya...\n")
+            continue  # Langsung lompat ke referral berikutnya
+        
+        post_to_waitlist(session, email)
+        check_latest_email(session, email, password)
+
 
 if __name__ == "__main__":
     main()
