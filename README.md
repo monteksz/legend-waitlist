@@ -4,6 +4,6 @@
 2. git clone https://github.com/monteksz/legend-waitlist
 3. cd legend-waitlist
 4. pip install -r requirements.txt
-5. Input your Refferal Code Reff.txt (Example: 2Mkeiroolwe2342sdawe) (Without URL https://legend.xyz/waitlist?referred_by=2Mkeiroolwe2342sdaw) 
+5. Input your Refferal Code Reff.txt (Example: 2Mkeiroolwe2342sdawe) Without URL! 
 6. Input your proxy Proxy.txt
 7. python main.py
